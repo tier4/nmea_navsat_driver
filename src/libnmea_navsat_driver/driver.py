@@ -37,7 +37,7 @@ import math
 import rospy
 
 from sensor_msgs.msg import NavSatFix, NavSatStatus, TimeReference
-from geometry_msgs.msg import TwistStamped, QuaternionStamped
+from geometry_msgs.msg import TwistStamped, QuaternionStamped, PoseWithCovarianceStamped
 from tf.transformations import quaternion_from_euler
 
 from libnmea_navsat_driver.checksum_utils import check_nmea_checksum
@@ -54,6 +54,7 @@ class RosNMEADriver(object):
             - NavSatFix publisher on the 'fix' channel.
             - TwistStamped publisher on the 'vel' channel.
             - QuaternionStamped publisher on the 'heading' channel.
+            - PoseWithCovarianceStamped publisher on the 'attitude' channel.
             - TimeReference publisher on the 'time_reference' channel.
 
         :ROS Parameters:
@@ -78,6 +79,8 @@ class RosNMEADriver(object):
         self.vel_pub = rospy.Publisher('vel', TwistStamped, queue_size=1)
         self.heading_pub = rospy.Publisher(
             'heading', QuaternionStamped, queue_size=1)
+        self.attitude_pub = rospy.Publisher(
+            'attitude', PoseWithCovarianceStamped, queue_size=1)
         self.use_GNSS_time = rospy.get_param('~use_GNSS_time', False)
         if not self.use_GNSS_time:
             self.time_ref_pub = rospy.Publisher(
@@ -336,6 +339,38 @@ class RosNMEADriver(object):
                 current_heading.quaternion.z = q[2]
                 current_heading.quaternion.w = q[3]
                 self.heading_pub.publish(current_heading)
+        elif 'SHR' in parsed_sentence:
+            data = parsed_sentence['PASHR']
+
+            if data['heading']:
+                current_attitude = PoseWithCovarianceStamped()
+
+                if self.use_GNSS_time:
+                    if math.isnan(data['utc_time'][0]):
+                        rospy.logwarn("Time in the NMEA sentence is NOT valid")
+                        return False
+                    current_attitude.header.stamp = rospy.Time(data['utc_time'][0], data['utc_time'][1])
+                else:
+                    current_attitude.header.stamp = current_time
+                
+                current_attitude.header.frame_id = frame_id
+                current_attitude.pose.pose.position.x = math.radians(data['roll'])
+                current_attitude.pose.pose.position.y = math.radians(data['pitch'])
+                current_attitude.pose.pose.position.z = math.radians(data['heading'])
+                q = quaternion_from_euler(math.radians(data['roll'])
+                                        , math.radians(data['pitch'])
+                                        , math.radians(data['heading']))
+                current_attitude.pose.pose.orientation.x = q[0]
+                current_attitude.pose.pose.orientation.y = q[1]
+                current_attitude.pose.pose.orientation.z = q[2]
+                current_attitude.pose.pose.orientation.w = q[3]
+                current_attitude.pose.covariance[0] = data['gps_quality']
+                current_attitude.pose.covariance[1] = data['imu_state']
+                current_attitude.pose.covariance[21] = math.radians(data['roll_accuracy'])
+                current_attitude.pose.covariance[28] = math.radians(data['pitch_accuracy'])
+                current_attitude.pose.covariance[35] = math.radians(data['heading_accuracy'])
+
+                self.attitude_pub.publish(current_attitude)
         else:
             return False
 

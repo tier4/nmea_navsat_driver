@@ -1,4 +1,4 @@
-POSLVのPASHRに対応させるためにforkして作業中
+POSLVのPASHRに対応させるためにfork
 
 nmea_navsat_driver
 ===============

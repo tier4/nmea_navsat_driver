@@ -258,7 +258,7 @@ parse_maps = {
     "HDT": [
         ("heading", safe_float, 1),
     ],
-    "PASHR": [
+    "SHR": [
         ("utc_time", convert_time, 1),
         ("heading", safe_float, 2),
         ("roll", safe_float, 4),

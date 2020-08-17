@@ -167,6 +167,8 @@ class RosNMEADriver(object):
             rospy.logwarn("Received a sentence with an invalid checksum. " +
                           "Sentence was: %s" % repr(nmea_string))
             return False
+#        else:
+#            rospy.logwarn("Valid sentence was: %s" % repr(nmea_string))
 
         parsed_sentence = libnmea_navsat_driver.parser.parse_nmea_sentence(
             nmea_string)
@@ -340,7 +342,7 @@ class RosNMEADriver(object):
                 current_heading.quaternion.w = q[3]
                 self.heading_pub.publish(current_heading)
         elif 'SHR' in parsed_sentence:
-            data = parsed_sentence['PASHR']
+            data = parsed_sentence['SHR']
 
             if data['heading']:
                 current_attitude = PoseWithCovarianceStamped()
